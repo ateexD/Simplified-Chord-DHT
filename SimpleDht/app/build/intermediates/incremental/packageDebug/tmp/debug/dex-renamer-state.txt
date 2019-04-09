@@ -1,0 +1,4 @@
+#Tue Apr 09 17:10:28 EDT 2019
+base.0=/home/aashish_jain/Downloads/SimpleDht/app/build/intermediates/dex/debug/mergeDexDebug/out
+path.0=classes.dex
+renamed.0=classes.dex
