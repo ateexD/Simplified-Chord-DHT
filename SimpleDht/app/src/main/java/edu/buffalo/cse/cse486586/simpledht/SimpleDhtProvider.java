@@ -213,8 +213,18 @@ public class SimpleDhtProvider extends ContentProvider {
                 while (keys.hasNext())
                     jsonObject.remove(keys.next());
 
-            } else
+            }
+
+            else if (jsonObject.has(selection))
                 jsonObject.remove(selection);
+
+            else {
+                if (selection.equals("*")) {
+                    jsonObject = new JSONObject();
+                }
+                Message message = new Message(myPort, "DELETE", selection, " ");
+                new Client().executeOnExecutor(AsyncTask.SERIAL_EXECUTOR, message);
+            }
 
             writeToJSON(jsonObject);
 
@@ -427,7 +437,27 @@ public class SimpleDhtProvider extends ContentProvider {
                             else
                                 new Client().executeOnExecutor(AsyncTask.SERIAL_EXECUTOR, m);
                             lock.unlock();
-                        } else if (m.status.equals("QUERY")) {
+                        } else if (m.status.equals("DELETE")) {
+                            lock.lock();
+
+                            if (m.key.equals("*")) {
+                                JSONObject jsonObject = new JSONObject();
+                                writeToJSON(jsonObject);
+                                new Client().executeOnExecutor(AsyncTask.SERIAL_EXECUTOR, m);
+                            }
+
+                            String keyHash = genHash(m.key);
+                            if (canDoOperation(keyHash)) {
+                                JSONObject jsonObject = new JSONObject(getJSONAsString());
+                                jsonObject.remove(m.key);
+                                writeToJSON(jsonObject);
+                            }
+                            else
+                                new Client().executeOnExecutor(AsyncTask.SERIAL_EXECUTOR, m);
+                            lock.unlock();
+                        }
+
+                        else if (m.status.equals("QUERY")) {
                             lock.lock();
                             Log.d("query", m.toString());
                             String keyHash = genHash(m.key);
@@ -479,6 +509,7 @@ public class SimpleDhtProvider extends ContentProvider {
                             }
                             lock.unlock();
                         }
+
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
@@ -545,6 +576,12 @@ public class SimpleDhtProvider extends ContentProvider {
                     dataOutputStream.writeUTF(message.toString());
                     dataOutputStream.flush();
                 } else if (message.status.equals("INSERT")) {
+                    Socket socket = addOrGetSocket(succId * 2);
+                    DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
+                    dos.writeUTF(message.toString());
+                    dos.flush();
+                }
+                else if (message.status.equals("DELETE")) {
                     Socket socket = addOrGetSocket(succId * 2);
                     DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
                     dos.writeUTF(message.toString());
