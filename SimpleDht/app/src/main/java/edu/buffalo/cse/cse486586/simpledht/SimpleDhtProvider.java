@@ -1,5 +1,17 @@
 package edu.buffalo.cse.cse486586.simpledht;
 
+import android.content.ContentProvider;
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.Cursor;
+import android.database.MatrixCursor;
+import android.net.Uri;
+import android.os.AsyncTask;
+import android.telephony.TelephonyManager;
+import android.util.Log;
+
+import org.json.JSONObject;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.FileInputStream;
@@ -20,20 +32,6 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-
-import android.content.ContentProvider;
-import android.content.ContentValues;
-import android.content.Context;
-import android.database.Cursor;
-import android.database.MatrixCursor;
-import android.net.Uri;
-import android.os.AsyncTask;
-import android.provider.ContactsContract;
-import android.telephony.TelephonyManager;
-import android.util.JsonReader;
-import android.util.Log;
-
-import org.json.JSONObject;
 
 import static android.content.ContentValues.TAG;
 import static android.content.Context.MODE_PRIVATE;
@@ -206,22 +204,17 @@ public class SimpleDhtProvider extends ContentProvider {
         lock.lock();
         try {
             JSONObject jsonObject = new JSONObject(getJSONAsString());
-            if (selection.equals("@")) {
 
-                Iterator<String> keys = jsonObject.keys();
-
-                while (keys.hasNext())
-                    jsonObject.remove(keys.next());
-
-            }
+            if (selection.equals("@"))
+                jsonObject = new JSONObject();
 
             else if (jsonObject.has(selection))
                 jsonObject.remove(selection);
 
             else {
-                if (selection.equals("*")) {
+                if (selection.equals("*"))
                     jsonObject = new JSONObject();
-                }
+
                 Message message = new Message(myPort, "DELETE", selection, " ");
                 new Client().executeOnExecutor(AsyncTask.SERIAL_EXECUTOR, message);
             }
@@ -319,8 +312,7 @@ public class SimpleDhtProvider extends ContentProvider {
                     Object[] row = {currKey, jsonObject.get(currKey)};
                     matrixCursor.addRow(row);
                 }
-            }
-            else if (selection.equals("*")) {
+            } else if (selection.equals("*")) {
                 Message m = new Message(myPort, "QUERY", "*", getJSONAsString());
 
                 Socket socket = addOrGetSocket(succId * 2);
@@ -341,16 +333,14 @@ public class SimpleDhtProvider extends ContentProvider {
                     matrixCursor.addRow(row);
                 }
 
-            }
-            else {
+            } else {
                 String keyHash = genHash(selection);
                 if (jsonObject.has(selection) || canDoOperation(keyHash)) {
                     String val = (String) jsonObject.get(selection);
                     Log.d("Query", selection + " - " + val);
                     Object[] row = {selection, val};
                     matrixCursor.addRow(row);
-                }
-                else {
+                } else {
                     Message m = new Message(myPort, "QUERY", selection, " ");
                     Socket socket = addOrGetSocket(succId * 2);
                     DataInputStream dataInputStream = new DataInputStream(socket.getInputStream());
@@ -439,25 +429,23 @@ public class SimpleDhtProvider extends ContentProvider {
                             lock.unlock();
                         } else if (m.status.equals("DELETE")) {
                             lock.lock();
-
-                            if (m.key.equals("*")) {
-                                JSONObject jsonObject = new JSONObject();
-                                writeToJSON(jsonObject);
-                                new Client().executeOnExecutor(AsyncTask.SERIAL_EXECUTOR, m);
+                            if (m.myPort != myPort) {
+                                if (m.key.equals("*")) {
+                                    JSONObject jsonObject = new JSONObject();
+                                    writeToJSON(jsonObject);
+                                    new Client().executeOnExecutor(AsyncTask.SERIAL_EXECUTOR, m);
+                                } else {
+                                    String keyHash = genHash(m.key);
+                                    if (canDoOperation(keyHash)) {
+                                        JSONObject jsonObject = new JSONObject(getJSONAsString());
+                                        jsonObject.remove(m.key);
+                                        writeToJSON(jsonObject);
+                                    } else
+                                        new Client().executeOnExecutor(AsyncTask.SERIAL_EXECUTOR, m);
+                                }
                             }
-
-                            String keyHash = genHash(m.key);
-                            if (canDoOperation(keyHash)) {
-                                JSONObject jsonObject = new JSONObject(getJSONAsString());
-                                jsonObject.remove(m.key);
-                                writeToJSON(jsonObject);
-                            }
-                            else
-                                new Client().executeOnExecutor(AsyncTask.SERIAL_EXECUTOR, m);
                             lock.unlock();
-                        }
-
-                        else if (m.status.equals("QUERY")) {
+                        } else if (m.status.equals("QUERY")) {
                             lock.lock();
                             Log.d("query", m.toString());
                             String keyHash = genHash(m.key);
@@ -467,7 +455,7 @@ public class SimpleDhtProvider extends ContentProvider {
 
                                 Iterator<String> keys = jsonObject.keys();
 
-                                while(keys.hasNext()) {
+                                while (keys.hasNext()) {
                                     String currKey = keys.next();
                                     accumulatedSoFar.put(currKey, jsonObject.get(currKey));
                                 }
@@ -477,8 +465,7 @@ public class SimpleDhtProvider extends ContentProvider {
                                     Log.d("QUERY *", m.value);
                                     dos.writeUTF(m.toString());
                                     dos.flush();
-                                }
-                                else {
+                                } else {
                                     Socket socket = addOrGetSocket(succId * 2);
                                     DataOutputStream dataOutputStream = new DataOutputStream(socket.getOutputStream());
                                     dataOutputStream.writeUTF(m.toString());
@@ -490,13 +477,11 @@ public class SimpleDhtProvider extends ContentProvider {
                                     dos.flush();
 
                                 }
-                            }
-                            else if (canDoOperation(keyHash)) {
+                            } else if (canDoOperation(keyHash)) {
                                 JSONObject jsonObject = new JSONObject(getJSONAsString());
-                                dos.writeUTF((String)jsonObject.get(m.key));
+                                dos.writeUTF((String) jsonObject.get(m.key));
                                 dos.flush();
-                            }
-                            else {
+                            } else {
                                 Socket socket = addOrGetSocket(succId * 2);
                                 DataOutputStream dataOutputStream = new DataOutputStream(socket.getOutputStream());
                                 dataOutputStream.writeUTF(m.toString());
@@ -575,13 +560,7 @@ public class SimpleDhtProvider extends ContentProvider {
                     dataOutputStream = new DataOutputStream(succSocket.getOutputStream());
                     dataOutputStream.writeUTF(message.toString());
                     dataOutputStream.flush();
-                } else if (message.status.equals("INSERT")) {
-                    Socket socket = addOrGetSocket(succId * 2);
-                    DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
-                    dos.writeUTF(message.toString());
-                    dos.flush();
-                }
-                else if (message.status.equals("DELETE")) {
+                } else if (message.status.equals("INSERT") || message.status.equals("DELETE")) {
                     Socket socket = addOrGetSocket(succId * 2);
                     DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
                     dos.writeUTF(message.toString());
