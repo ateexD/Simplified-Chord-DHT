@@ -25,7 +25,7 @@ The lecture slides give an overview, but do not discuss Chord in detail, so it s
 
 ### Note
 
-It is important to remember that this assignment does not require you to implement everything about Chord. Mainly, there are three things you **_do not_ **need to consider from the Chord paper.
+It is important to remember that this assignment does not require you to implement everything about Chord. Mainly, there are three things you **_do not_** need to consider from the Chord paper.
 
 
 
