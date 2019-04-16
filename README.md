@@ -1,8 +1,8 @@
-## CSE 486/586 Distributed Systems PA 3
+## CSE 486/586 Distributed Systems
 
+## PA 3
 
 ## Simple DHT
-
 
 ### Introduction
 
